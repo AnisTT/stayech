@@ -1,27 +1,30 @@
 import json
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from datetime import datetime
-import sqlite3
 from collections import defaultdict
 from assistant import Assistant  # Import the Assistant class
 from dotenv import load_dotenv
 import google.generativeai as genai
+import pyodbc as odbc
+print(odbc.drivers())
+from credentials import username, password
 import os
 
 load_dotenv()
 
 # Configure the Gemini API
+server = "stayech.database.windows.net"
+DATABASE = "tracker"
+# connction_string = 'DRIVER={ODBC Driver 17 for SQL Server};SERVER='+server+';DATABASE='+DATABASE+';UID='+username+';PWD='+ password
+conn = odbc.connect('DRIVER={ODBC Driver 17 for SQL Server};SERVER='+server+';DATABASE='+DATABASE+';UID='+username+';PWD='+ password)
 genai.configure(api_key=os.environ["GEMINI_API_KEY"])
 model = genai.GenerativeModel("gemini-1.5-flash")
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'
 Assistant = Assistant()
-# SQLite database setup
-DATABASE = 'finance_tracker.db'
 
 def init_db():
-    conn = sqlite3.connect(DATABASE)
     c = conn.cursor()
     # Existing users table
     c.execute('''
@@ -61,7 +64,6 @@ def init_db():
     conn.commit()
     conn.close()
 
-init_db()
 
 @app.route('/')
 def index():
@@ -70,7 +72,7 @@ def index():
         username = session['username']
         
         # Fetch transactions (expenses) from the database
-        conn = sqlite3.connect(DATABASE)
+        
         c = conn.cursor()
         c.execute("SELECT * FROM transactions WHERE user_id = ?", (user_id,))
         transactions = c.fetchall()
@@ -97,7 +99,7 @@ def index():
                                total_upi=total_upi, total_cash=total_cash, recommendations=recommendations)
     return redirect(url_for('login'))
 def get_user_data(user_id):
-    conn = sqlite3.connect(DATABASE)
+    
     c = conn.cursor()
     
     # Fetch transactions
@@ -117,15 +119,16 @@ def get_user_data(user_id):
 def send_message(message, history):
     user_data = get_user_data(session['user_id'])
     user_data_str = json.dumps(user_data)
-    message = (
+    mess = (
+        "my name is " + session['username'] + ", I am a student"
         "your name is stayech, you are a student, you are 20 years"
         "you help us to manage our finance, you are a good person"
                 "now, you know my incomes and expenses, please provide tailored finaincial conversation "
+                "if you already got the data please don't send the same message"
+                "Don't answer anything isn't financial or related"
                 "Here’s the user data: " + user_data_str  # Include user data in the message
             )
-    history.append({"role":"user", "parts":user_data})
-    history.append({"role":"user", "parts":message})
-    print("User Data Sent to Model:", history)
+    history.append({"role":"user", "parts":mess})
     chat = model.start_chat(history = history)
     response = chat.send_message(message)
     history.append({"role":"model", "parts":response.text})
@@ -151,7 +154,7 @@ def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        conn = sqlite3.connect(DATABASE)
+        
         c = conn.cursor()
         c.execute("SELECT id, username FROM users WHERE username = ? AND password = ?", (username, password))
         user = c.fetchone()
@@ -176,7 +179,7 @@ def register():
         email = request.form['email']
         phone = request.form['phone']
         password = request.form['password']
-        conn = sqlite3.connect(DATABASE)
+        
         c = conn.cursor()
         c.execute("SELECT * FROM users WHERE username = ?", (username,))
         existing_user = c.fetchone()
@@ -196,7 +199,7 @@ def transactions():
     if 'username' in session:
         user_id = session['user_id']
         username = session['username']
-        conn = sqlite3.connect(DATABASE)
+        
         c = conn.cursor()
         c.execute("SELECT * FROM transactions WHERE user_id = ?", (user_id,))
         transactions = c.fetchall()
@@ -216,7 +219,7 @@ def add_transaction():
         payment_method = request.form['payment_method']
         description = request.form['notes']
 
-        conn = sqlite3.connect(DATABASE)
+        
         c = conn.cursor()
         c.execute("INSERT INTO transactions (user_id, date, category, amount, payment_method, description) VALUES (?, ?, ?, ?, ?, ?)",
                   (user_id, date, category, amount, payment_method, description))
@@ -230,7 +233,7 @@ def add_transaction():
 @app.route('/delete_transaction/<int:transaction_id>', methods=['POST'])
 def delete_transaction(transaction_id):
     if 'username' in session:
-        conn = sqlite3.connect(DATABASE)
+        
         c = conn.cursor()
         c.execute("DELETE FROM transactions WHERE id = ?", (transaction_id,))
         conn.commit()
@@ -249,7 +252,7 @@ def add_income():
             amount = request.form['amount']
             description = request.form['notes']
 
-            conn = sqlite3.connect(DATABASE)
+            
             c = conn.cursor()
             c.execute("INSERT INTO incomes (user_id, date,  amount,  description) VALUES (?, ?, ?, ?)",
                       (user_id, date,  amount,  description))
@@ -267,7 +270,7 @@ def add_income():
 def income():
     if 'username' in session:
         user_id = session['user_id']
-        conn = sqlite3.connect(DATABASE)
+        
         c = conn.cursor()
         c.execute("SELECT * FROM incomes WHERE user_id = ?", (user_id,))
         income_records = c.fetchall()
@@ -279,7 +282,7 @@ def income():
 @app.route('/delete_income/<int:income_id>', methods=['POST'])
 def delete_income(income_id):
     if 'username' in session:
-        conn = sqlite3.connect(DATABASE)
+        
         c = conn.cursor()
         c.execute("DELETE FROM incomes WHERE id = ?", (income_id,))
         conn.commit()
@@ -291,7 +294,7 @@ def delete_income(income_id):
 @app.route('/monthly_income_data')
 def monthly_income_data():
     if 'username' in session:
-        conn = sqlite3.connect(DATABASE)
+        
         c = conn.cursor()
         c.execute('''
             SELECT strftime('%Y-%m', date) as month, SUM(amount) as total_income
@@ -311,7 +314,7 @@ def daily_spending_data():
     if 'username' in session:
         user_id = session['user_id']
         
-        conn = sqlite3.connect(DATABASE)
+        
         c = conn.cursor()
         c.execute("SELECT date, SUM(amount) FROM transactions WHERE user_id = ? GROUP BY date", (user_id,))
         data = c.fetchall()
@@ -329,7 +332,7 @@ def monthly_spending_data():
     if 'username' in session:
         user_id = session['user_id']
         
-        conn = sqlite3.connect(DATABASE)
+        
         c = conn.cursor()
         c.execute("SELECT strftime('%Y-%m', date) AS month, SUM(amount) FROM transactions WHERE user_id = ? GROUP BY month", (user_id,))
         data = c.fetchall()
@@ -346,7 +349,7 @@ def daily_income_data():
     if 'username' in session:
         user_id = session['user_id']
         
-        conn = sqlite3.connect(DATABASE)
+        
         c = conn.cursor()
         c.execute("SELECT date, SUM(amount) FROM incomes WHERE user_id = ? GROUP BY date", (user_id,))
         data = c.fetchall()
@@ -364,7 +367,7 @@ def balance():
     if 'username' in session:
         user_id = session['user_id']
         
-        conn = sqlite3.connect(DATABASE)
+        
         c = conn.cursor()
         
         # Fetch total income
@@ -389,7 +392,7 @@ def statistics():
     user_id = session.get('user_id')
     
     if user_id:
-        conn = sqlite3.connect(DATABASE)
+        
         c = conn.cursor()
 
         c.execute("SELECT SUM(amount) FROM transactions WHERE user_id = ?", (user_id,))
