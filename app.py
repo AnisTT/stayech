@@ -5,7 +5,7 @@ from collections import defaultdict
 from assistant import Assistant  # Import the Assistant class
 from dotenv import load_dotenv
 import google.generativeai as genai
-import pyodbc as odbc
+import pypyodbc as odbc
 print(odbc.drivers())
 import os
 
