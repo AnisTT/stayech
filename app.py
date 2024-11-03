@@ -7,7 +7,6 @@ from dotenv import load_dotenv
 import google.generativeai as genai
 import pyodbc as odbc
 print(odbc.drivers())
-from credentials import username, password
 import os
 
 load_dotenv()
@@ -16,6 +15,8 @@ load_dotenv()
 server = "stayech.database.windows.net"
 DATABASE = "tracker"
 # connction_string = 'DRIVER={ODBC Driver 17 for SQL Server};SERVER='+server+';DATABASE='+DATABASE+';UID='+username+';PWD='+ password
+username = os.environ["username"]
+password = os.environ["password"]
 conn = odbc.connect('DRIVER={ODBC Driver 17 for SQL Server};SERVER='+server+';DATABASE='+DATABASE+';UID='+username+';PWD='+ password)
 genai.configure(api_key=os.environ["GEMINI_API_KEY"])
 model = genai.GenerativeModel("gemini-1.5-flash")
