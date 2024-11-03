@@ -1,0 +1,234 @@
+{% extends 'base.html' %}
+
+   
+{% block content %}
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+
+<!-- Include highlight.js for syntax highlighting -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.5.0/styles/default.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.5.0/highlight.min.js"></script>
+    <style>
+   
+
+        .chat-container {
+            width: 100%;
+            max-width: 800px;
+            background-color: #ffffff;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            height: 90vh;
+            overflow: hidden;
+            position: relative;
+            margin-left: 200px;
+            justify-content: center;
+            
+        }
+        @media (max-width: 768px) {
+            .chat-container {
+                margin-left: auto;
+            }
+        }
+
+        .chat-header {
+            background-color: #343541;
+            color: #e9ecef;
+            padding: 20px;
+            text-align: center;
+            font-size: 24px;
+            font-weight: 500;
+            border-bottom: 1px solid #eaeaea;
+        }
+
+        .chat-messages {
+            padding: 20px;
+            height: calc(100% - 150px); /* Adjust height for the textarea */
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .chat-input {
+            display: flex;
+            border-top: 1px solid #ddd;
+            padding: 10px;
+            background-color: #f7f7f8;
+            align-items: flex-end;
+        }
+
+        .chat-input textarea {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            background-color: #e9ecef;
+            font-size: 16px;
+            resize: none; /* Disable manual resizing */
+            overflow: hidden;
+            min-height: 40px; /* Minimum height */
+            max-height: 150px; /* Maximum height */
+            line-height: 1.5;
+        }
+
+        .chat-input button {
+            background-color: #10a37f;
+            color: white;
+            padding: 12px 15px;
+            margin-left: 10px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .chat-input button:hover {
+            background-color: #0e8c72;
+        }
+
+        .user-message, .bot-message {
+            padding: 12px 18px;
+            border-radius: 12px;
+            max-width: 75%;
+            font-size: 16px;
+            line-height: 1.5;
+            word-wrap: break-word;
+        }
+
+        .user-message {
+            background-color: #10a37f;
+            color: white;
+            align-self: flex-end;
+        }
+
+        .bot-message {
+            background-color: #f1f1f1;
+            color: #333;
+            align-self: flex-start;
+        }
+
+        .loading {
+            font-size: 12px;
+            color: #aaa;
+            align-self: flex-start;
+        }
+
+        .chat-messages {
+            scroll-behavior: smooth;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f7f7f8;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background-color: #d1d1d1;
+            border-radius: 10px;
+        }
+
+        pre, code {
+            background-color: #eee;
+            padding: 8px;
+            border-radius: 5px;
+            display: block;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 14px;
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            font-weight: 500;
+        }
+
+        ul {
+            padding-left: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="chat-container">
+        <div class="chat-header">
+            stayech
+        </div>
+        <div class="chat-messages" id="chatMessages">
+            <!-- Messages will appear here -->
+        </div>
+        <div class="chat-input">
+            <textarea id="userInput" placeholder="Type your message..." oninput="autoResize(this)"></textarea>
+            <button onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <!-- Load marked.js from correct CDN version -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@4.0.12/marked.min.js"></script>
+
+    <script>
+        let history = [];
+
+        // Configure marked to use highlight.js for code blocks
+        marked.setOptions({
+            highlight: function(code, lang) {
+                const language = hljs.getLanguage(lang) ? lang : 'plaintext';
+                return hljs.highlight(code, { language }).value;
+            }
+        });
+
+        // Automatically resize the textarea as the user types
+        function autoResize(textarea) {
+            textarea.style.height = 'auto'; // Reset height
+            textarea.style.height = textarea.scrollHeight + 'px'; // Set height based on scrollHeight
+        }
+
+        function appendMessage(message, ...classNames) {
+            const messageContainer = document.createElement('div');
+            messageContainer.classList.add(...classNames);
+
+            // Use marked.parse to parse Markdown and set it as HTML with syntax highlighting
+            messageContainer.innerHTML = marked.parse(message);
+
+            document.getElementById('chatMessages').appendChild(messageContainer);
+            document.getElementById('chatMessages').scrollTop = document.getElementById('chatMessages').scrollHeight;
+        }
+
+        function sendMessage() {
+            const userInput = document.getElementById('userInput');
+            const message = userInput.value.trim();
+            if (message === '') return;
+            
+            appendMessage(message, 'user-message');
+            userInput.value = '';
+            userInput.style.height = 'auto'; // Reset the height after sending the message
+            appendMessage('...', 'bot-message', 'loading');
+
+            fetch('/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ message: message, history : history }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.querySelector('.loading').remove();
+                appendMessage(data.message, 'bot-message');
+                history = data.history;
+            })
+            .catch(err => {
+                document.querySelector('.loading').remove();
+                appendMessage('Error, please try again.', 'bot-message');
+            });
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+    </script>
+{% endblock %}

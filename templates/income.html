@@ -1,0 +1,150 @@
+{% extends 'base.html' %}
+
+{% block title %}
+Incomes - Finance Tracker
+{% endblock %}
+
+{% block content %}
+<style>
+    /* Style for the popup window */
+    .popup {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 9999;
+    }
+
+    .popup-content {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background-color: white;
+        padding: 20px;
+        border-radius: 5px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+        width: 400px; /* Set the width of the popup window */
+    }
+
+    .close {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        cursor: pointer;
+    }
+</style>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <h2>Incomes</h2>
+    </div>
+    <div class="col-md-6 text-end">
+        <button class="btn btn-primary" onclick="openIncomePopup()">Add Income</button>
+        <button class="btn btn-success" onclick="downloadIncomeCSV()"><i class="fa-solid fa-file-arrow-down"></i> CSV</button>
+    </div>
+</div>
+
+<div class="table-responsive mt-4">
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Amount</th>
+                <th>Notes</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for income in income_records %}
+            <tr>
+                <td>{{ income[3] }}</td>  {# Date #}
+                <td>TND{{ income[2] }}</td>  {# Amount #}
+                <td>{{ income[4] }}</td>  {# Notes or Description #}
+                <td>
+                    <!-- Button or link to trigger the delete action -->
+                    <form action="{{ url_for('delete_income', income_id=income[0]) }}" method="post">
+                        <button type="submit" class="btn btn-danger"><i class="fas fa-trash-alt"></i></button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Income Popup window -->
+<div id="incomePopup" class="popup">
+    <div class="popup-content p-4">
+        <span class="close" onclick="closeIncomePopup()">&times;</span>
+        <!-- Form for adding income -->
+        <form action="{{ url_for('add_income') }}" method="post">
+            <div class="mb-3">
+                <label for="income_date" class="form-label">Date:</label>
+                <input type="date" id="income_date" name="date" class="form-control" required>
+            </div>
+            <div class="mb-3">
+                <label for="source" class="form-label">Source:</label>
+                <input type="text" id="source" name="source" class="form-control" required>
+            </div>
+
+            <div class="mb-3">
+                <label for="income_amount" class="form-label">Amount:</label>
+                <input type="number" id="income_amount" name="amount" class="form-control" required>
+            </div>
+            <div class="mb-3">
+                <label for="income_notes" class="form-label">Notes:</label>
+                <textarea id="income_notes" name="notes" class="form-control"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">Add Income</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Function to open the income popup window
+    function openIncomePopup() {
+        document.getElementById("incomePopup").style.display = "block";
+    }
+
+    // Function to close the income popup window
+    function closeIncomePopup() {
+        document.getElementById("incomePopup").style.display = "none";
+    }
+
+    // Function to download the income table as a CSV file
+    function downloadIncomeCSV() {
+        // Get all table rows except the header
+        const rows = document.querySelectorAll('table tbody tr');
+
+        // Prepare CSV content
+        let csvContent = 'Date,Source,Amount,Notes\n';
+
+        // Iterate over table rows and append data to CSV content
+        rows.forEach(row => {
+            const columns = row.querySelectorAll('td');
+            const rowData = Array.from(columns).map(column => column.textContent.replace(/\n/g, '').replace('₹', '')); // Remove newline characters and INR symbol
+            csvContent += rowData.join(',') + '\n';
+        });
+
+        // Create a Blob object containing the CSV content
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+
+        // Create a temporary anchor element
+        const a = document.createElement('a');
+        a.href = window.URL.createObjectURL(blob);
+        a.download = 'incomes.csv';
+
+        // Append the anchor element to the document body and trigger a click event
+        document.body.appendChild(a);
+        a.click();
+
+        // Remove the anchor element from the document body
+        document.body.removeChild(a);
+    }
+</script>
+
+{% endblock %}

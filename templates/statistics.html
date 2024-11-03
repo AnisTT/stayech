@@ -6,13 +6,17 @@ Statistics - Finance Tracker
 
 {% block content %}
 <div class="container mt-4">
+    <div class="container mt-5">
+        <h2>Financial Overview</h2>
+        <canvas id="balanceChart"></canvas>
+    </div>
     <!-- Total Expenses -->
     <div class="card mb-4">
         <div class="card-header">
             Total Expenses
         </div>
         <div class="card-body">
-            <h5 class="card-title">₹{{ total_expenses }}</h5>
+            <h5 class="card-title">TND{{ total_expenses }}</h5>
         </div>
     </div>
 
@@ -26,14 +30,14 @@ Statistics - Finance Tracker
             <thead>
                 <tr>
                     <th>Category</th>
-                    <th>Amount (₹)</th>
+                    <th>Amount (TND)</th>
                 </tr>
             </thead>
             <tbody>
                 {% for category, amount in expense_by_category.items() %}
                 <tr>
                     <td>{{ category }}</td>
-                    <td>₹{{ amount }}</td>
+                    <td>TND{{ amount }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -50,10 +54,65 @@ Statistics - Finance Tracker
         <div class="card-body">
             <ul class="list-group">
                 {% for category, amount in top_spending_categories.items() %}
-                <li class="list-group-item">{{ category }}: ₹{{ amount }}</li>
+                <li class="list-group-item">{{ category }}: TND{{ amount }}</li>
                 {% endfor %}
             </ul>
         </div>
     </div>
 </div>
+
+<script>
+    async function fetchBalanceData() {
+        const response = await fetch('/balance');
+        if (!response.ok) {
+            console.error('Error fetching balance data:', response.statusText);
+            return;
+        }
+        return await response.json();
+    }
+    
+    async function renderChart() {
+        const balanceData = await fetchBalanceData();
+        
+        // Check if data fetching was successful
+        if (balanceData.error) {
+            console.error(balanceData.error);
+            return;
+        }
+    
+        const ctx = document.getElementById('balanceChart').getContext('2d');
+    
+        // Create the chart
+        new Chart(ctx, {
+            type: 'bar', // You can change this to 'line', 'pie', etc.
+            data: {
+                labels: ['Total Income', 'Total Expenses', 'Balance'],
+                datasets: [{
+                    label: 'Amount (TND)',
+                    data: [balanceData.total_income, balanceData.total_expenses, balanceData.balance],
+                    backgroundColor: [
+                        'rgba(75, 192, 192, 0.2)',
+                        'rgba(255, 99, 132, 0.2)',
+                        'rgba(255, 206, 86, 0.2)',
+                    ],
+                    borderColor: [
+                        'rgba(75, 192, 192, 1)',
+                        'rgba(255, 99, 132, 1)',
+                        'rgba(255, 206, 86, 1)',
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+    
+    renderChart();
+</script>
 {% endblock %}
